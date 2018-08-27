@@ -1,0 +1,25 @@
+{
+	"manifest_version": 2,
+	"name": "Memory",
+	"version": "1.0",
+	"description": "Build an Extension!",
+    "page_action": {
+    	"default_popup": "popup.html",
+    	"default_title": "MemoryPage"
+    },
+    "background": {
+    	"scripts": ["background.js"],
+    	"persistent": false
+    },
+    "content_scripts": [
+    	{
+    		"matches": ["http://*.renren.com/*"],
+    		"js": ["content.js", "jquery-3.3.1.min.js"]
+    	}
+    ],
+    "permissions": [
+    	"storage",
+    	"tabs",
+    	"http://*.renren.com/*"
+    ]
+}
