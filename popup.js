@@ -1,5 +1,4 @@
 
-
 function parseFriendsListResponse(responseData) {
 	var cleanedDataStr = responseData.split('"data" : ')[1];
 	cleanedDataStr = cleanedDataStr.substring(0, cleanedDataStr.lastIndexOf("}"));
@@ -9,17 +8,35 @@ function parseFriendsListResponse(responseData) {
 
 function parseAlbumListResponse(responseData) {
 	var regex = /'albumList':\s*(\[.*?\]),/g;
-	var albums_raw = responseData.match(regex)[0];
-	albums_raw = albums_raw.split("'albumList': ")[1];
-	albums_raw = albums_raw.substring(0, albums_raw.lastIndexOf(","));
+	var albumsRaw = responseData.match(regex)[0];
+	albumsRaw = albumsRaw.split("'albumList': ")[1];
+	albumsRaw = albumsRaw.substring(0, albumsRaw.lastIndexOf(","));
 	try {
-		var dataJson = JSON.parse(albums_raw);
+		var dataJson = JSON.parse(albumsRaw);
 	} catch (err) {
 		console.log("error parsing json");
 	}
 	return dataJson;
 }
 
+function parseAlbumResponse(responseData) {
+	var regex = /"url":"(.*?)"/g;
+	var imageListRaw = responseData.match(regex);
+	if (imageListRaw == null) {
+		console.log("respData" + responseData);
+		return [];
+	}
+	console.log(imageListRaw);
+	var imageUrlList = [];
+	for (var i = 0; i < imageListRaw.length; i++) {
+		var raw = imageListRaw[i];
+		raw = raw.split('url":"')[1];
+		raw = raw.split('"')[0];
+		raw = raw.replace(/\\/g, "");
+		imageUrlList.push(raw);
+	}
+	return imageUrlList;
+}
 
 function getAlbumListInfo(userId) {
 	var albumListUrl = 'http://photo.renren.com/photo/' + userId + '/albumlist/v7';
@@ -29,42 +46,32 @@ function getAlbumListInfo(userId) {
 	}).responseText;
 
 	var albumListJson = parseAlbumListResponse(data);
+	console.log(albumListJson);
 	var albumCount = 0;
 	var photoCount = 0;
-	var i;
-	for (i = 0; i < albumListJson.length; i++) {
+	albumPhotoUrlDict = {};
+	for (var i = 0; i < albumListJson.length; i++) {
 		var album = albumListJson[i];
-		if (album['sourceControl'] == 0 || album['sourceControl'] == 99) {
-			console.log('in source');
+		if ((album['sourceControl'] == 0 || album['sourceControl'] == 99) && album['photoCount'] > 0) {
 			albumCount += 1;
 			photoCount += album['photoCount'];
+
+			var albumUrl = 'http://photo.renren.com/photo/' + album['ownerId'] + '/' + 'album-' + album['albumId'] + '/v7';
+			var albumResponseData = $.ajax({
+				url: albumUrl,
+				async: false
+			}).responseText;
+			var imageUrlList = parseAlbumResponse(albumResponseData);
+			albumPhotoUrlDict[album['albumName']] = imageUrlList;
 		}
-		// console.log(album['albumId'] + ' ' + album['albumName'] + ' ' + album['sourceControl'] + ' ' + album['photoCount']);
 	}
-	return `Albums: ${albumCount} Photos: ${photoCount}`;
+	return albumPhotoUrlDict;
+}
 
-	// $.get(albumListUrl, function(data, status) {
-	// 	var albumListJson = parseAlbumListResponse(data);
-
-	// 	var albumCount = 0;
-	// 	var photoCount = 0;
-	// 	var i;
-	// 	for (i = 0; i < albumListJson.length; i++) {
-	// 		var album = albumListJson[i];
-	// 		if (album['sourceControl'] == 0 || album['sourceControl'] == 99) {
-	// 			console.log('in source');
-	// 			albumCount += 1;
-	// 			photoCount += album['photoCount'];
-	// 		}
-	// 		// console.log(album['albumId'] + ' ' + album['albumName'] + ' ' + album['sourceControl'] + ' ' + album['photoCount']);
-	// 	}
-	// 	var storeKey = `userInfo_${userId}`;
-	// 	var storeVal = `Albums: ${albumCount} Photos: ${photoCount}`;
-
-	// 	chrome.storage.local.set({storeKey: storeVal}, function() {
-	// 		console.log(`stored ${storeKey} ${storeVal}`);
- //    	});
-	// })
+function getAlbumPhotoUrls(albumUrl) {
+	$.get(albumUrl, function(data, status) {
+		var imageUrlList = parseAlbumResponse(data);	
+	})
 }
 
 function displayFriendsList() {
@@ -72,11 +79,16 @@ function displayFriendsList() {
 		var friendsList = data.friendsList;
     	var friendsListStr = "Friends:\n";
 
-    	var i = 0;
-    	for (i = 0; i < friendsList.length; i++) {
+    	for (var i = 0; i < friendsList.length; i++) {
     		var friendData = friendsList[i];
-    		console.log(friendData);
-    		var friendInfo = friendData['fname'] + ": " + friendData['albumInfo'] + "\n";
+    		var albumData = friendData['albumInfo'];
+    		var friendInfo = friendData['fname'] + "\n";
+    		for (var albumName in albumData) {
+    			friendInfo += albumName + "\n";
+    			for (var idx in albumData[albumName]) {
+    				friendInfo += decodeURI(albumData[albumName][idx]) + "\n";
+    			}
+    		}
     		friendsListStr += friendInfo;
     	}
 		$('#friendsList').text(friendsListStr);
@@ -95,11 +107,13 @@ $(function() {
     $('#getFriendsButton').click(function() {
     	var getFriendsListRequestUrl = 'http://friend.renren.com/groupsdata';
     	$.get(getFriendsListRequestUrl, function(data, status) {
+
     		// TODO: remove the slice to enable for all users
-	    	var friendsList = parseFriendsListResponse(data).slice(0,5);
+	    	var friendsList = parseFriendsListResponse(data).slice(0,2);
 
 	    	for (var i = 0; i < friendsList.length; i++) {
-	    		var albumListInfo = getAlbumListInfo(friendsList[i]['fid']);
+	    		var friendId = friendsList[i]['fid'];
+	    		var albumListInfo = getAlbumListInfo(friendId);
 	    		friendsList[i]['albumInfo'] = albumListInfo;
 	    	}
 	    	chrome.storage.local.set({'friendsList': friendsList}, function() {
