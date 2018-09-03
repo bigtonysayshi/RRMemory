@@ -95,6 +95,49 @@ function displayFriendsList() {
     })
 }
 
+function getPhotoData(photoUrl) {
+	var xhr = new XMLHttpRequest();
+    xhr.open("GET", photoUrl, false);
+    xhr.overrideMimeType("text/plain; charset=x-user-defined");
+    xhr.send(null);
+   return xhr.responseText;
+}
+
+function downloadPhotos() {
+	chrome.storage.local.get(['friendsList'], function(data) {
+		var zip = new JSZip();
+		var rootDir = zip.folder("photos");
+
+		var friendsList = data.friendsList;
+		friendsList.forEach(function(friendData) {
+			console.log("Start downloading user " + friendData['fname']);
+			var friendDir = rootDir.folder(friendData['fname']);
+			var albumData = friendData['albumInfo'];
+			for (var albumName in albumData) {
+				console.log("Start downloading album " + albumName);
+				var albumDir = friendDir.folder(albumName);
+				var downloadCount = 0;
+				albumData[albumName].forEach(function(photoUrl) {
+					var photoName = photoUrl.substring(photoUrl.lastIndexOf("/") + 1, photoUrl.length);
+					try {
+				    	var phtoData =  getPhotoData(photoUrl);
+					} catch (err) {
+						console.log("getPhotoData error");
+					}
+				    albumDir.file(photoName, phtoData, {binary:true});
+				    downloadCount += 1;
+				    console.log(downloadCount + " photos downloaded");
+				});
+			}
+
+		})
+		
+		zip.generateAsync({type: "blob"}).then(function(content) {
+			saveAs(content, "memorytest.zip");
+		});
+    })
+}
+
 $(function() {
 	chrome.tabs.query({active:true,currentWindow: true}, function(tabs) {
 		var currentUrl = tabs[0].url;
@@ -109,7 +152,7 @@ $(function() {
     	$.get(getFriendsListRequestUrl, function(data, status) {
 
     		// TODO: remove the slice to enable for all users
-	    	var friendsList = parseFriendsListResponse(data).slice(0,2);
+	    	var friendsList = parseFriendsListResponse(data).slice(0,5);
 
 	    	for (var i = 0; i < friendsList.length; i++) {
 	    		var friendId = friendsList[i]['fid'];
@@ -121,5 +164,9 @@ $(function() {
 	    		displayFriendsList();
 	    	});
     	})
-    })
+    });
+
+    $('#downloadButton').click(function() {
+    	downloadPhotos();
+    });
 })
