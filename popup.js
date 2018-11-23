@@ -1,3 +1,5 @@
+var NUM_STATUS_PER_PAGE = 20;
+var STATUS_URL = 'http://status.renren.com/GetSomeomeDoingList.do';
 
 function parseFriendsListResponse(responseData) {
 	var cleanedDataStr = responseData.split('"data" : ')[1];
@@ -167,20 +169,129 @@ function downloadPhotos() {
     })
 }
 
+// function makeAjaxCall(url) {
+// 	var xhr = new XMLHttpRequest();
+//     xhr.open("GET", url, false);
+//     xhr.overrideMimeType("text/plain; charset=x-user-defined");
+//     xhr.send(null);
+//    return xhr.responseText;
+// }
+
+function getStatusSummary(userId, page, callback) {
+	$.ajax({
+		url: STATUS_URL,
+		data: {
+			"userId": userId,
+			"curpage": page,
+		},
+		dataType: "json",
+		success: function(data) {
+			console.log("Downloaded status page " + page);
+
+			var summary = "";
+			for (var idx in data["doingArray"]) {
+				var statusItem = data["doingArray"][idx];
+				// Skip reposts
+				var rootUserId = statusItem["rootDoingUserId"];
+				var invalidCode = statusItem["code"];
+				if ((rootUserId && rootUserId != userId) || invalidCode) {
+					continue;
+				}
+				var content = statusItem["content"];
+				var cleanedContent = content.replace(/<[^>]*>/g, '');
+				summary += cleanedContent + "\t" + statusItem["dtime"] + "\n";
+			}
+			callback(null, summary);
+		}
+	});
+}
+
+function testGetUserStatusDataAsync(userId, fileDir) {
+	console.log("start downloading status data");
+
+	var statusSummary = "";
+
+	async.map([0, 1, 2, 4, 5, 6, 7], function(page, callback) {
+	    getStatusSummary(userId, page, function (err, res) {
+	        if (err) {
+	        	return callback(err);
+	        }
+	        callback(null, res);
+	    })
+	}, function(err, results) {
+	    if (err) {
+			console.log("error " + err);
+		}
+		for (var idx in results) {
+			statusSummary += results[idx];
+		}
+		console.log("map done");
+		console.log(results.length);
+	});
+
+}
+
+function getUserStatusDataAsync(userId, fileDir, callback) {
+	console.log("start downloading status data");
+
+	// compute the number of pages
+	var firstPageData = $.ajax({
+		url: STATUS_URL,
+		data: {
+			"userId": userId,
+			"curpage": 0,
+		},
+		dataType: "json",
+		async: false,
+	});
+	console.log(firstPageData.responseJSON);
+	var totalStatusCount = firstPageData.responseJSON.count;
+	var numPages = Math.ceil(totalStatusCount / NUM_STATUS_PER_PAGE);
+
+	var statusSummary = "";
+
+	async.map([...Array(numPages).keys()], function(page, callback) {
+	    getStatusSummary(userId, page, function (err, res) {
+	        if (err) {
+	        	return callback(err);
+	        }
+	        callback(null, res);
+	    })
+	}, function(err, results) {
+	    if (err) {
+			console.log("error " + err);
+		}
+		for (var idx in results) {
+			statusSummary += results[idx];
+		}
+		console.log("map done");
+		console.log(results.length);
+		fileDir.file("status.txt", statusSummary);
+		callback();
+	});
+
+}
+
 function getUserStatusData(userId, fileDir) {
-	var statusUrl = 'http://status.renren.com/GetSomeomeDoingList.do';
+	console.log("start downloading status data");
+
+	// $('#statusProgress').text("Scanning Status");
+
 	var statusSummary = "";
 
 	var page = 0;
 	while (page >= 0) {
+		console.log("Downloading status page " + page);
+
 		var data = $.ajax({
-			url: statusUrl,
+			url: STATUS_URL,
 			data: {
 				"userId": userId,
 				"curpage": page,
 			},
-			async: false
+			// async: false
 		}).responseText;
+		$('#statusProgress').text("Scanning Status Page " + page);
 		var parsedData = JSON.parse(data);
 
 		// exit while loop if no more item
@@ -206,6 +317,8 @@ function getUserStatusData(userId, fileDir) {
 		page += 1;
 	}
 	fileDir.file("status.txt", statusSummary);
+
+	// $('#statusProgress').text("Complete Scanning Status");
 }
 
 function getBlogContent(userId, blogId) {
@@ -225,10 +338,14 @@ function getBlogContent(userId, blogId) {
 }
 
 function getUserBlogData(userId, fileDir) {
+	console.log("start downloading blog data");
+	// $('#statusProgress').text("Scanning Blogs");
+
 	var blogListUrl = 'http://blog.renren.com/blog/' + userId + '/blogs';
 
 	var page = 0;
 	while (page >= 0) {
+		console.log("Downloading blog page " + page);
 		var data = $.ajax({
 			url: blogListUrl,
 			data: {
@@ -258,6 +375,8 @@ function getUserBlogData(userId, fileDir) {
 
 		page += 1;
 	}
+
+	// $('#statusProgress').text("Complete Scanning Blogs");
 }
 
 function getUserPhotoData(userId, fileDir) {
@@ -304,27 +423,63 @@ function getUserPhotoData(userId, fileDir) {
 	});
 
 }
-
 function downloadUserData(userId, userName) {
 	var zip = new JSZip();
 	var rootDir = zip.folder(userName + "_" + userId);
 
-	// Status
 	var statusDir = rootDir.folder("Status");
-	getUserStatusData(userId, statusDir);
+	var blogDir = rootDir.folder("Blogs");
+
+	async.parallel([
+	    function(callback) {
+			getUserStatusDataAsync(userId, statusDir, callback);
+	    },
+
+	  //   function(callback) {
+			// getUserBlogData(userId, blogDir);
+	  //   }
+	],
+	// optional callback
+	function(err, results) {
+    	// Save file
+		zip.generateAsync({type: "blob"}).then(function(content) {
+			saveAs(content, "memorytest.zip");
+		});
+	});
+
+	// Status
+	// setTimeout(function() {
+	// 	$('#statusProgress').text("Scanning Status");
+	//  	var statusDir = rootDir.folder("Status");
+	// 	getUserStatusData(userId, statusDir);
+	// 	$('#statusProgress').text("Finished Scanning Status");
+	// }, 0);
+
+	// asyncWrapper(getUserStatusData(userId, statusDir), function() {
+	// 	console.log("getUserStatusData Finished");
+	// })
 
 	// Blogs
-	var blogDir = rootDir.folder("Blogs");
-	getUserBlogData(userId, blogDir);
+	// setTimeout(function() {
+	// 	$('#blogProgress').text("Scanning Blogs");
+	// 	var blogDir = rootDir.folder("Blogs");
+	// 	getUserBlogData(userId, blogDir);
+	// 	$('#blogProgress').text("Finished Scanning Blogs");
+	// }, 0);
+
+	// asyncWrapper(getUserBlogData(userId, blogDir), function() {
+	// 	console.log("getUserBlogData Finished");
+	// })
 
 	// Photos
-	var photoDir = rootDir.folder("Photos");
-	getUserPhotoData(userId, photoDir);
+	// setTimeout(function() {
+	// 	$('#photoProgress').text("Scanning Photos");
+	// 	var photoDir = rootDir.folder("Photos");
+	// 	getUserPhotoData(userId, photoDir);
+	// 	$('#photoProgress').text("Finished Scanning Photos");
+	// }, 0);
 	
-	// Save file
-	zip.generateAsync({type: "blob"}).then(function(content) {
-		saveAs(content, "memorytest.zip");
-	});
+
 }
 
 $(function() {
@@ -339,7 +494,7 @@ $(function() {
     	});
 
     	$('#getFriendsButton').click(function() {
-    		getUserPhotoData(userId);
+    		testGetUserStatusDataAsync(userId, null);
     	});
     });
     

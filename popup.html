@@ -2,6 +2,7 @@
 <html>
   <head>
     <title>Memory</title>
+    <script src="async.min.js"></script>
     <script src="jquery-3.3.1.min.js"></script>
     <script src="jszip.min.js"></script>
     <script src="FileSaver.min.js"></script>
@@ -9,8 +10,12 @@
   </head>
   <body>
     <h2 id="displayText">foo</h2>
-    <input id="downloadButton" type="submit" value="Download Photos"/>
-    <input id="getFriendsButton" type="submit" value="Get Friends List"/>
-    <div id="friendsList" style="overflow: auto; width:300px; height:200px;white-space: pre;">Friends:</div>
+    <h2 id="statusProgress">Status Not Scanned</h2>
+    <h2 id="blogProgress">Blogs Not Scanned</h2>
+    <h2 id="photoProgress">Photos Not Scanned</h2>
+
+    <input id="downloadButton" type="submit" value="Download User Data"/>
+    <input id="getFriendsButton" type="submit" value="Test"/>
+    <div id="friendsList" style="overflow: auto; width:300px; height:200px;white-space: pre;"></div>
   </body>
 </html>
