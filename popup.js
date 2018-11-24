@@ -162,14 +162,6 @@ function downloadPhotos() {
     })
 }
 
-// function makeAjaxCall(url) {
-// 	var xhr = new XMLHttpRequest();
-//     xhr.open("GET", url, false);
-//     xhr.overrideMimeType("text/plain; charset=x-user-defined");
-//     xhr.send(null);
-//    return xhr.responseText;
-// }
-
 function getStatusSummary(userId, page, callback) {
 	$.ajax({
 		url: STATUS_URL,
@@ -200,6 +192,7 @@ function getStatusSummary(userId, page, callback) {
 }
 
 function getUserStatusDataAsync(userId, fileDir, callback) {
+	$('#statusProgress').text("Scanning Status Data");
 	console.log("start downloading status data");
 
 	// compute the number of pages
@@ -232,6 +225,8 @@ function getUserStatusDataAsync(userId, fileDir, callback) {
 			statusSummary += results[idx];
 		}
 		fileDir.file("status.txt", statusSummary);
+		$('#statusProgress').text("Finished Downloading Status Data");
+
 		callback();
 	});
 
@@ -280,6 +275,7 @@ function getBlogPage(blogListUrl, userId, page, fileDir, callback) {
 }
 
 function getUserBlogDataAsync(userId, fileDir, callback) {
+	$('#blogProgress').text("Scanning Blog Data");
 	console.log("start downloading blog data");
 
 	var blogListUrl = 'http://blog.renren.com/blog/' + userId + '/blogs';
@@ -309,6 +305,7 @@ function getUserBlogDataAsync(userId, fileDir, callback) {
 	    if (err) {
 			console.log("error " + err);
 		}
+		$('#blogProgress').text("Finished Downloading Blog Data");
 		callback();
 	});
 }
@@ -354,6 +351,8 @@ function getAlbumDataAsync(albumName, photoUrls, fileDir, callback) {
 }
 
 function getUserPhotoDataAsync(userId, fileDir, callback) {
+	$('photoProgress').text("Scanning Photo Data");
+
 	var albumData = getAlbumListInfo(userId);
 
 	// fetch tagged photos
@@ -374,52 +373,8 @@ function getUserPhotoDataAsync(userId, fileDir, callback) {
 	    if (err) {
 			console.log("error " + err);
 		}
-		console.log("map serires complete");
+		$('photoProgress').text("Finished Downloading Photo Data");
 		callback();
-	});
-}
-
-function getUserPhotoData(userId, fileDir) {
-	var albumData = getAlbumListInfo(userId);
-	for (var albumName in albumData) {
-		console.log("Start downloading album " + albumName);
-		var albumDir = fileDir.folder(albumName);
-		var photoUrls = albumData[albumName];
-
-		var downloadCount = 0;
-		albumData[albumName].forEach(function(photoUrl) {
-			var photoName = photoUrl.substring(photoUrl.lastIndexOf("/") + 1, photoUrl.length);
-			try {
-		    	var phtoData =  getPhotoData(photoUrl);
-			} catch (err) {
-				console.log("getPhotoData error");
-			}
-		    albumDir.file(photoName, phtoData, {binary:true});
-		    downloadCount += 1;
-		    console.log(downloadCount + " photos downloaded");
-		});
-	}
-
-	// download tagged photos
-	var taggedAlbumUrl = 'http://photo.renren.com/photo/' + userId + '/tag/v7';
-	var taggedAlbumResponseData = $.ajax({
-		url: taggedAlbumUrl,
-		async: false
-	}).responseText;
-	var taggedPhotoUrls = parseAlbumResponse(taggedAlbumResponseData);
-
-	var albumDir = fileDir.folder('Tagged');
-	var downloadCount = 0;
-	taggedPhotoUrls.forEach(function(photoUrl) {
-		var photoName = photoUrl.substring(photoUrl.lastIndexOf("/") + 1, photoUrl.length);
-		try {
-	    	var phtoData =  getPhotoData(photoUrl);
-		} catch (err) {
-			console.log("getPhotoData error");
-		}
-	    albumDir.file(photoName, phtoData, {binary:true});
-	    downloadCount += 1;
-	    console.log(downloadCount + " photos downloaded");
 	});
 }
 
@@ -431,7 +386,7 @@ function downloadUserData(userId, userName) {
 	var blogDir = rootDir.folder("Blogs");
 	var photoDir = rootDir.folder("Photos");
 
-	async.parallel([
+	async.series([
 	    function(callback) {
 			getUserStatusDataAsync(userId, statusDir, callback);
 	    },
