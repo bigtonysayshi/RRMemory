@@ -196,56 +196,60 @@ function getUserStatusDataAsync(userId, fileDir, callback) {
 	console.log("start downloading status data");
 
 	// compute the number of pages
-	var firstPageData = $.ajax({
+	$.ajax({
 		url: STATUS_URL,
 		data: {
 			"userId": userId,
 			"curpage": 0,
 		},
 		dataType: "json",
-		async: false,
-	});
-	var totalStatusCount = firstPageData.responseJSON.count;
-	var numPages = Math.ceil(totalStatusCount / NUM_STATUS_PER_PAGE);
+		success: function(firstPageData) {
+			console.log(firstPageData);
+			var totalStatusCount = firstPageData.count;
+			var numPages = Math.ceil(totalStatusCount / NUM_STATUS_PER_PAGE);
 
-	var statusSummary = "";
+			var statusSummary = "";
 
-	async.map([...Array(numPages).keys()], function(page, callback) {
-	    getStatusSummary(userId, page, function (err, res) {
-	        if (err) {
-	        	return callback(err);
-	        }
-	        callback(null, res);
-	    })
-	}, function(err, results) {
-	    if (err) {
-			console.log("error " + err);
+			async.map([...Array(numPages).keys()], function(page, callback) {
+			    getStatusSummary(userId, page, function (err, res) {
+			        if (err) {
+			        	return callback(err);
+			        }
+			        $('#statusProgress').text("Downloading Status Page " + page);
+			        callback(null, res);
+			    })
+			}, function(err, results) {
+			    if (err) {
+					console.log("error " + err);
+				}
+				for (var idx in results) {
+					statusSummary += results[idx];
+				}
+				fileDir.file("status.txt", statusSummary);
+				$('#statusProgress').text("Finished Downloading Status Data");
+
+				callback();
+			});
 		}
-		for (var idx in results) {
-			statusSummary += results[idx];
-		}
-		fileDir.file("status.txt", statusSummary);
-		$('#statusProgress').text("Finished Downloading Status Data");
-
-		callback();
 	});
-
 }
 
-function getBlogContent(userId, blogId) {
+function getBlogContent(userId, blogId, callback) {
 	var blogDetailUrl = 'http://blog.renren.com/blog/' + userId + '/' + blogId;
-	var data = $.ajax({
+	$.ajax({
 		url: blogDetailUrl,
-		async: false
-	}).responseText;
-
-	var blogContent = $('#blogContent', data);
-	if (blogContent == null) {
-		return null;
-	}
-
-	return blogContent[0].innerText.trim();
-
+		success: function(data) {
+			var blogContent = $('#blogContent', data);
+			if (!blogContent || !blogContent[0]) {
+				return callback(null, null);
+			}
+			callback(null, blogContent[0].innerText.trim());
+		},
+		error: function (jqXHR, status, err) {
+        	console.log("get blog content error");
+        	callback(err, null);
+        }
+	});
 }
 
 function getBlogPage(blogListUrl, userId, page, fileDir, callback) {
@@ -257,19 +261,31 @@ function getBlogPage(blogListUrl, userId, page, fileDir, callback) {
 		dataType: "json",
 		success: function(data) {
 			console.log("Downloaded blog page " + page);
+			async.map(data.data, function(blogData, callback) {
+				console.log(blogData);
+			    var blogItem = blogData;
+				var blogId = blogItem.id;
+				var createTime = blogItem.createTime;
+				var title = blogItem.title;
+				console.log("blogId " + blogId);
 
-			console.log(data);
-			for (var idx in data["data"]) {
-				var blogItem = data["data"][idx];
-				var blogId = blogItem["id"];
-				var content = getBlogContent(userId, blogId);
-				var createTime = blogItem["createTime"];
-				var title = blogItem["title"];
-				var summary = title + "\n" + createTime + "\n" + content + "\n";
-
-				fileDir.file(title + ".txt", summary);
-			}
-			callback(null, summary);
+				getBlogContent(userId, blogId, function(err, res) {
+					if (err) {
+						console.log("get blog content error");
+						callback();
+						return;
+					}
+					var summary = title + "\n" + createTime + "\n" + res + "\n";
+					fileDir.file(title + ".txt", summary);
+					callback();
+				});
+			}, function(err, results) {
+			    if (err) {
+					console.log("error " + err);
+				}
+				$('#blogProgress').text("Finished Downloading Blog Page " + page);
+				callback();
+			});
 		}
 	});
 }
@@ -281,32 +297,33 @@ function getUserBlogDataAsync(userId, fileDir, callback) {
 	var blogListUrl = 'http://blog.renren.com/blog/' + userId + '/blogs';
 
 	// compute the number of pages
-	var firstPageData = $.ajax({
+	$.ajax({
 		url: blogListUrl,
 		data: {
 			"curpage": 0,
 		},
 		dataType: "json",
-		async: false,
-	});
-	var totalBlogCount = firstPageData.responseJSON.count;
-	var numPages = Math.ceil(totalBlogCount / NUM_STATUS_PER_PAGE);
+		success: function(firstPageData) {
+			var totalBlogCount = firstPageData.count;
+			var numPages = Math.ceil(totalBlogCount / NUM_STATUS_PER_PAGE);
 
-	var statusSummary = "";
+			var statusSummary = "";
 
-	async.map([...Array(numPages).keys()], function(page, callback) {
-	    getBlogPage(blogListUrl, userId, page, fileDir, function (err, res) {
-	        if (err) {
-	        	return callback(err);
-	        }
-	        callback(null, res);
-	    })
-	}, function(err, results) {
-	    if (err) {
-			console.log("error " + err);
+			async.map([...Array(numPages).keys()], function(page, callback) {
+			    getBlogPage(blogListUrl, userId, page, fileDir, function (err, res) {
+			        if (err) {
+			        	return callback(err);
+			        }
+			        callback(null, res);
+			    })
+			}, function(err, results) {
+			    if (err) {
+					console.log("error " + err);
+				}
+				$('#blogProgress').text("Finished Downloading Blog Data");
+				callback();
+			});
 		}
-		$('#blogProgress').text("Finished Downloading Blog Data");
-		callback();
 	});
 }
 
@@ -318,6 +335,25 @@ function getPhotoDataAsync(photoUrl) {
    return xhr.responseText;
 }
 
+function getPhotoDataAsync2(photoUrl, callback) {
+	$.ajax({
+		url: photoUrl,
+		dataType:"binary",
+		xhr:function() {
+            var xhr = new XMLHttpRequest();
+            xhr.responseType= 'blob'
+            return xhr;
+        },
+        success: function(data) {
+            callback(null, data);
+        },
+        error: function (jqXHR, status, err) {
+        	console.log("async download photo error");
+        	callback(err, null);
+        }
+	});
+}
+
 function getAlbumDataAsync(albumName, photoUrls, fileDir, callback) {
 	console.log("Start downloading album async" + albumName);
 	var albumDir = fileDir.folder(albumName);
@@ -326,14 +362,15 @@ function getAlbumDataAsync(albumName, photoUrls, fileDir, callback) {
 
 	async.map(photoUrls, function(photoUrl, callback) {
 	    var photoName = photoUrl.substring(photoUrl.lastIndexOf("/") + 1, photoUrl.length);
-		try {
-	    	var phtoData =  getPhotoDataAsync(photoUrl);
-	    	callback(null, [photoName, phtoData]);
-		} catch (err) {
-			console.log("getPhotoData error " + err);
-			callback(null, null);
-		}
+	    getPhotoDataAsync2(photoUrl, function(err, res) {
+    		if (err) {
+    			console.log("getPhotoData error " + err);
+    			callback(err, null);
+    		}
+    		callback(null, [photoName, res]);
+    	});
 	}, function(err, results) {
+		console.log("data map finish");
 	    if (err) {
 			console.log("error " + err);
 		}
@@ -343,7 +380,6 @@ function getAlbumDataAsync(albumName, photoUrls, fileDir, callback) {
 			}
 			var photoName = res[0];
 			var photoData = res[1];
-			console.log("photo name callback " + photoName);
 			albumDir.file(photoName, photoData, {binary:true});
 		});
 		callback();
@@ -351,7 +387,7 @@ function getAlbumDataAsync(albumName, photoUrls, fileDir, callback) {
 }
 
 function getUserPhotoDataAsync(userId, fileDir, callback) {
-	$('photoProgress').text("Scanning Photo Data");
+	$('#photoProgress').text("Scanning Photo Data");
 
 	var albumData = getAlbumListInfo(userId);
 
@@ -364,16 +400,21 @@ function getUserPhotoDataAsync(userId, fileDir, callback) {
 	var taggedPhotoUrls = parseAlbumResponse(taggedAlbumResponseData);
 	albumData["Tagged"] = taggedPhotoUrls;
 
+	var numAlbums = Object.keys(albumData).length;
+	var downloadedAlbums = 0;
+	$('#photoProgress').text("Downloding Photo Data " + downloadedAlbums + "/" + numAlbums);
 	async.mapSeries(Object.keys(albumData), function(albumName, callback) {
 	    console.log("Start downloading album " + albumName);
 		var photoUrls = albumData[albumName];
 
 		getAlbumDataAsync(albumName, photoUrls, fileDir, callback);
+		downloadedAlbums += 1;
+		$('#photoProgress').text("Downloding Photo Data " + downloadedAlbums + "/" + numAlbums);
 	}, function(err, results) {
 	    if (err) {
 			console.log("error " + err);
 		}
-		$('photoProgress').text("Finished Downloading Photo Data");
+		$('#photoProgress').text("Finished Downloading Photo Data");
 		callback();
 	});
 }
