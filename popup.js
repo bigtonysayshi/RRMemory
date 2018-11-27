@@ -32,35 +32,6 @@ function parseAlbumResponse(responseData) {
 	return imageUrlList;
 }
 
-function getAlbumListInfo(userId) {
-	var albumListUrl = 'http://photo.renren.com/photo/' + userId + '/albumlist/v7';
-	var data = $.ajax({
-		url: albumListUrl,
-		async: false
-	}).responseText;
-
-	var albumListJson = parseAlbumListResponse(data);
-	var albumCount = 0;
-	var photoCount = 0;
-	albumPhotoUrlDict = {};
-	for (var i = 0; i < albumListJson.length; i++) {
-		var album = albumListJson[i];
-		if ((album['sourceControl'] == 0 || album['sourceControl'] == 99 || album['sourceControl'] == -1) && album['photoCount'] > 0) {
-			albumCount += 1;
-			photoCount += album['photoCount'];
-
-			var albumUrl = 'http://photo.renren.com/photo/' + album['ownerId'] + '/' + 'album-' + album['albumId'] + '/v7';
-			var albumResponseData = $.ajax({
-				url: albumUrl,
-				async: false
-			}).responseText;
-			var imageUrlList = parseAlbumResponse(albumResponseData);
-			albumPhotoUrlDict[album['albumName']] = imageUrlList;
-		}
-	}
-	return albumPhotoUrlDict;
-}
-
 function getStatusSummary(userId, page, callback) {
 	$.ajax({
 		url: STATUS_URL,
@@ -283,41 +254,98 @@ function getAlbumDataAsync(albumName, photoUrls, fileDir, callback) {
 	});
 }
 
+function getAlbumListInfoAsync(userId, callback) {
+	var albumListUrl = 'http://photo.renren.com/photo/' + userId + '/albumlist/v7';
+	$.ajax({
+		url: albumListUrl,
+		success: function(data){
+			var albumListJson = parseAlbumListResponse(data);
+			albumPhotoUrlDict = {};
+
+			async.map(albumListJson, function(album, callback) {
+			    if ((album['sourceControl'] == 0 || album['sourceControl'] == 99 || album['sourceControl'] == -1) && album['photoCount'] > 0) {
+					var albumUrl = 'http://photo.renren.com/photo/' + album['ownerId'] + '/' + 'album-' + album['albumId'] + '/v7';
+					var albumResponseData = $.ajax({
+						url: albumUrl,
+						success: function(albumResponseData) {
+							var imageUrlList = parseAlbumResponse(albumResponseData);
+							albumPhotoUrlDict[album['albumName']] = imageUrlList;
+							callback();
+						},
+					});
+				} else {
+					callback();
+				}
+			}, function(err, results) {
+			    if (err) {
+					console.log("getAlbumListInfoAsync error " + err);
+				}
+				callback(null, albumPhotoUrlDict);
+			});
+		},
+		error: function(jqXHR, status, err) {
+        	console.log("getAlbumListInfoAsync error");
+        	callback(err, {});
+        }
+	});
+}
+
+function getTaggedPhotoDataAsync(userId, callback) {
+	var taggedAlbumUrl = 'http://photo.renren.com/photo/' + userId + '/tag/v7';
+
+	$.ajax({
+		url: taggedAlbumUrl,
+		success: function(data) {
+			var taggedPhotoUrls = parseAlbumResponse(data);
+			callback(null, {"Tagged": taggedPhotoUrls});
+		},
+		error: function(jqXHR, status, err) {
+        	console.log("getTaggedPhotoDataAsync error");
+        	callback(err, {});
+        }
+	});
+}
+
 function getUserPhotoDataAsync(userId, fileDir, callback) {
 	$('#photoProgress').text("Scanning Photo Data");
 
-	var albumData = getAlbumListInfo(userId);
-
-	// fetch tagged photos
-	var taggedAlbumUrl = 'http://photo.renren.com/photo/' + userId + '/tag/v7';
-	var taggedAlbumResponseData = $.ajax({
-		url: taggedAlbumUrl,
-		async: false
-	}).responseText;
-	var taggedPhotoUrls = parseAlbumResponse(taggedAlbumResponseData);
-	albumData["Tagged"] = taggedPhotoUrls;
-
-	var numAlbums = Object.keys(albumData).length;
-	var downloadedAlbums = 0;
-	$('#photoProgress').text("Downloding Photo Data " + downloadedAlbums + "/" + numAlbums);
-	async.mapSeries(Object.keys(albumData), function(albumName, callback) {
-		var photoUrls = albumData[albumName];
-
-		getAlbumDataAsync(albumName, photoUrls, fileDir, callback);
-		downloadedAlbums += 1;
-		$('#photoProgress').text("Downloding Photo Data " + downloadedAlbums + "/" + numAlbums);
-	}, function(err, results) {
-	    if (err) {
-			console.log("error " + err);
+	async.parallel([
+	    function(callback) {
+			getAlbumListInfoAsync(userId, callback);
+	    },
+	    function(callback) {
+			getTaggedPhotoDataAsync(userId, callback);
+	    },
+	],
+	function(err, results) {
+		var albumData =  {};
+		for (var idx in results) {
+			albumData =  Object.assign(albumData, results[idx]);
 		}
-		$('#photoProgress').text("Finished Downloading Photo Data");
-		callback();
+
+    	var numAlbums = Object.keys(albumData).length;
+		var downloadedAlbums = 0;
+		$('#photoProgress').text("Downloding Photo Data " + downloadedAlbums + "/" + numAlbums);
+		async.mapSeries(Object.keys(albumData), function(albumName, callback) {
+			var photoUrls = albumData[albumName];
+
+			getAlbumDataAsync(albumName, photoUrls, fileDir, callback);
+			downloadedAlbums += 1;
+			$('#photoProgress').text("Downloding Photo Data " + downloadedAlbums + "/" + numAlbums);
+		}, function(err, results) {
+		    if (err) {
+				console.log("error " + err);
+			}
+			$('#photoProgress').text("Finished Downloading Photo Data");
+			callback();
+		});
 	});
 }
 
 function downloadUserData(userId, userName) {
+	var filename = userName + "_" + userId;
 	var zip = new JSZip();
-	var rootDir = zip.folder(userName + "_" + userId);
+	var rootDir = zip.folder(filename);
 
 	var statusDir = rootDir.folder("Status");
 	var blogDir = rootDir.folder("Blogs");
@@ -337,7 +365,7 @@ function downloadUserData(userId, userName) {
 	function(err, results) {
     	// Save file
 		zip.generateAsync({type: "blob"}).then(function(content) {
-			saveAs(content, "memorytest.zip");
+			saveAs(content, filename + ".zip");
 		});
 	});
 	
