@@ -1,12 +1,6 @@
 var NUM_STATUS_PER_PAGE = 20;
 var STATUS_URL = 'http://status.renren.com/GetSomeomeDoingList.do';
 
-function parseFriendsListResponse(responseData) {
-	var cleanedDataStr = responseData.split('"data" : ')[1];
-	cleanedDataStr = cleanedDataStr.substring(0, cleanedDataStr.lastIndexOf("}"));
-	var dataJson = JSON.parse(cleanedDataStr);
-	return dataJson['friends'];
-}
 
 function parseAlbumListResponse(responseData) {
 	var regex = /'albumList':\s*(\[.*?\]),/g;
@@ -25,10 +19,8 @@ function parseAlbumResponse(responseData) {
 	var regex = /"url":"(.*?)"/g;
 	var imageListRaw = responseData.match(regex);
 	if (imageListRaw == null) {
-		// console.log("respData" + responseData);
 		return [];
 	}
-	// console.log(imageListRaw);
 	var imageUrlList = [];
 	for (var i = 0; i < imageListRaw.length; i++) {
 		var raw = imageListRaw[i];
@@ -48,7 +40,6 @@ function getAlbumListInfo(userId) {
 	}).responseText;
 
 	var albumListJson = parseAlbumListResponse(data);
-	// console.log(albumListJson);
 	var albumCount = 0;
 	var photoCount = 0;
 	albumPhotoUrlDict = {};
@@ -68,98 +59,6 @@ function getAlbumListInfo(userId) {
 		}
 	}
 	return albumPhotoUrlDict;
-}
-
-function displayFriendsList() {
-	chrome.storage.local.get(['friendsList'], function(data) {
-		var friendsList = data.friendsList;
-    	var friendsListStr = "Friends:\n";
-
-    	for (var i = 0; i < friendsList.length; i++) {
-    		var friendData = friendsList[i];
-    		var albumData = friendData['albumInfo'];
-    		var friendInfo = friendData['fname'] + "\n";
-    		for (var albumName in albumData) {
-    			friendInfo += albumName + "\n";
-    			for (var idx in albumData[albumName]) {
-    				friendInfo += decodeURI(albumData[albumName][idx]) + "\n";
-    			}
-    		}
-    		friendsListStr += friendInfo;
-    	}
-		$('#friendsList').text(friendsListStr);
-    })
-}
-
-function getPhotoData(photoUrl) {
-	var xhr = new XMLHttpRequest();
-    xhr.open("GET", photoUrl, false);
-    xhr.overrideMimeType("text/plain; charset=x-user-defined");
-    xhr.send(null);
-   return xhr.responseText;
-}
-
-function downloadAlbumPhotos(albumDir, photoUrls) {
-	var xhr = new XMLHttpRequest();
-	xhr.setRequestHeader('User-Agent',"XHR User-Agent Override");
-
-	var downloadCount = 0;
-
-	async.eachLimit(photoUrls, 10, function(photoUrl, callback) {
-		var photoName = photoUrl.substring(photoUrl.lastIndexOf("/") + 1, photoUrl.length);
-		try {
-			var phtoData =  getPhotoDataAsync(xhr, photoUrl);
-		    albumDir.file(photoName, phtoData, {binary:true});
-		    downloadCount += 1;
-		    console.log(downloadCount + " photos downloaded");
-		} catch (err) {
-			console.log(err.message);
-		}
-		callback();
-	}, function(err) {
-	    if (err) {
-	    	console.log(err.message);
-	    }
-	});
-}
-
-function downloadPhotos() {
-	chrome.storage.local.get(['friendsList'], function(data) {
-		var zip = new JSZip();
-		var rootDir = zip.folder("photos");
-
-		var friendsList = data.friendsList;
-		friendsList.forEach(function(friendData) {
-			console.log("Start downloading user " + friendData['fname']);
-			var friendDir = rootDir.folder(friendData['fname']);
-			var albumData = friendData['albumInfo'];
-			for (var albumName in albumData) {
-				console.log("Start downloading album " + albumName);
-				var albumDir = friendDir.folder(albumName);
-				var photoUrls = albumData[albumName];
-
-				// downloadAlbumPhotos(albumDir, photoUrls);
-
-				var downloadCount = 0;
-				albumData[albumName].forEach(function(photoUrl) {
-					var photoName = photoUrl.substring(photoUrl.lastIndexOf("/") + 1, photoUrl.length);
-					try {
-				    	var phtoData =  getPhotoData(photoUrl);
-					} catch (err) {
-						console.log("getPhotoData error");
-					}
-				    albumDir.file(photoName, phtoData, {binary:true});
-				    downloadCount += 1;
-				    console.log(downloadCount + " photos downloaded");
-				});
-			}
-
-		})
-		
-		zip.generateAsync({type: "blob"}).then(function(content) {
-			saveAs(content, "memorytest.zip");
-		});
-    })
 }
 
 function getStatusSummary(userId, page, callback) {
@@ -327,15 +226,7 @@ function getUserBlogDataAsync(userId, fileDir, callback) {
 	});
 }
 
-function getPhotoDataAsync(photoUrl) {
-	var xhr = new XMLHttpRequest();
-    xhr.open("GET", photoUrl, false);
-    xhr.overrideMimeType("text/plain; charset=x-user-defined");
-    xhr.send(null);
-   return xhr.responseText;
-}
-
-function getPhotoDataAsync2(photoUrl, callback) {
+function getPhotoDataAsync(photoUrl, callback) {
 	$.ajax({
 		url: photoUrl,
 		dataType:"binary",
@@ -362,7 +253,7 @@ function getAlbumDataAsync(albumName, photoUrls, fileDir, callback) {
 
 	async.map(photoUrls, function(photoUrl, callback) {
 	    var photoName = photoUrl.substring(photoUrl.lastIndexOf("/") + 1, photoUrl.length);
-	    getPhotoDataAsync2(photoUrl, function(err, res) {
+	    getPhotoDataAsync(photoUrl, function(err, res) {
     		if (err) {
     			console.log("getPhotoData error " + err);
     			callback(err, null);
