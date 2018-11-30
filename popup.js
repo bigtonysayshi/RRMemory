@@ -372,19 +372,48 @@ function downloadUserData(userId, userName) {
 }
 
 $(function() {
+
 	chrome.tabs.query({active:true,currentWindow: true}, function(tabs) {
 		var currentUrl = tabs[0].url;
-		var userId = currentUrl.match(/\d/g).join("");
-		var userName = tabs[0].title.split("-")[1].trim();
-		$('#displayText').text("UserID: " + userId + "\nUserName: " + userName);
+		var homePageUrlPattern = /^http:\/\/www.renren.com\/(\d*)\/profile/;
+		if (homePageUrlPattern.test(currentUrl)) {
+			console.log("##passed check");
+			$('#redirectButton').hide();
+			$('#downloadButton').show();
+			$('#getFriendsButton').show();
+			$('#statusProgress').show();
+			$('#blogProgress').show();
+			$('#photoProgress').show();
 
-		$('#downloadButton').click(function() {
-    		downloadUserData(userId, userName);
-    	});
+			var userId = currentUrl.match(/\d/g).join("");
+			var userName = tabs[0].title.split("-")[1].trim();
+			$('#displayText').text("UserID: " + userId + "\nUserName: " + userName);
 
-    	$('#getFriendsButton').click(function() {
-    		getUserBlogDataAsync(userId, null);
-    	});
+			$('#downloadButton').click(function() {
+	    		downloadUserData(userId, userName);
+	    	});
+
+	    	$('#getFriendsButton').click(function() {
+	    		getUserBlogDataAsync(userId, null);
+	    	});
+
+		} else {
+			console.log("no match");
+			$('#redirectButton').show();
+			$('#downloadButton').hide();
+			$('#getFriendsButton').hide();
+			$('#statusProgress').hide();
+			$('#blogProgress').hide();
+			$('#photoProgress').hide();
+
+			$('#displayText').text("You are not on a renren profile page");
+
+			$('#redirectButton').click(function() {
+				console.log('redirectButoon clicked');
+				chrome.tabs.create({ url: 'http://www.renren.com/profile' });
+			});
+		}
+
     });
     
 })
