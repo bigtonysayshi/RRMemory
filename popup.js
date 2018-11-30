@@ -343,6 +343,9 @@ function getUserPhotoDataAsync(userId, fileDir, callback) {
 }
 
 function downloadUserData(userId, userName) {
+	// disable button while downloading
+	$('#downloadButton').prop('disabled', true);
+
 	var filename = userName + "_" + userId;
 	var zip = new JSZip();
 	var rootDir = zip.folder(filename);
@@ -367,6 +370,8 @@ function downloadUserData(userId, userName) {
 		zip.generateAsync({type: "blob"}).then(function(content) {
 			saveAs(content, filename + ".zip");
 		});
+		// reenable download button
+		$('#downloadButton').prop('disabled', false);
 	});
 	
 }
@@ -377,10 +382,8 @@ $(function() {
 		var currentUrl = tabs[0].url;
 		var homePageUrlPattern = /^http:\/\/www.renren.com\/(\d*)\/profile/;
 		if (homePageUrlPattern.test(currentUrl)) {
-			console.log("##passed check");
 			$('#redirectButton').hide();
 			$('#downloadButton').show();
-			$('#getFriendsButton').show();
 			$('#statusProgress').show();
 			$('#blogProgress').show();
 			$('#photoProgress').show();
@@ -393,15 +396,9 @@ $(function() {
 	    		downloadUserData(userId, userName);
 	    	});
 
-	    	$('#getFriendsButton').click(function() {
-	    		getUserBlogDataAsync(userId, null);
-	    	});
-
 		} else {
-			console.log("no match");
 			$('#redirectButton').show();
 			$('#downloadButton').hide();
-			$('#getFriendsButton').hide();
 			$('#statusProgress').hide();
 			$('#blogProgress').hide();
 			$('#photoProgress').hide();
