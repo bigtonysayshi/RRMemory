@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hans">
   <head>
     <title>Memory</title>
     <link rel="stylesheet" href="spectre.css">
@@ -8,6 +8,7 @@
     <script src="jszip.min.js"></script>
     <script src="FileSaver.min.js"></script>
     <script src="popup.js"></script>
+    <meta charset="utf-8"> 
   </head>
   <body>
     <div class="container grid-md" style="width:300px;">
@@ -17,27 +18,31 @@
         </div>
 
         <div class="column col-12 text-center text-break">
-          <h5 id="displayText">foo</h5>
+          <h5 id="displayText">欢迎</h5>
         </div>
         <div class="column col-12 text-center text-break">
-          <h5 id="statusProgress">Status Not Scanned</h5>
+          <span id="statusProgress" class="badge" data-badge="0">状态未开始检测</span>
         </div>
         <div class="column col-12 text-center text-break">
-          <h5 id="blogProgress">Blogs Not Scanned</h5>
+          <span id="blogProgress" class="badge" data-badge="0">日志未开始检测</span>
         </div>
         <div class="column col-12 text-center text-break">
-          <h5 id="photoProgress">Photos Not Scanned</h5>
-        </div>
-        
-        <div class="column col-12 text-center">
-          <input id="downloadButton" class="btn btn-primary" type="submit" value="Download User Data"/>
-          <input id="redirectButton" class="btn btn-primary" type="submit" value="Go to renren.com"/>
+          <span id="photoProgress" class="badge" data-badge="0/0">照片未开始检测</span>
         </div>
         
         <div class="column col-12">
           <br>
         </div>
         
+        <div class="column col-12 text-center">
+          <input id="downloadButton" class="btn btn-primary" type="submit" value="开始下载"/>
+          <input id="redirectButton" class="btn btn-primary" type="submit" value="点我！去人人网"/>
+        </div>
+        
+        <div class="column col-12">
+          <br>
+        </div>
+
       </div>
     </div>
 

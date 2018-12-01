@@ -64,7 +64,7 @@ function getStatusSummary(userId, page, callback) {
 }
 
 function getUserStatusDataAsync(userId, fileDir, callback) {
-	$('#statusProgress').text("Scanning Status Data");
+	$('#statusProgress').text("状态检测中");
 
 	// compute the number of pages
 	$.ajax({
@@ -83,7 +83,7 @@ function getUserStatusDataAsync(userId, fileDir, callback) {
 			        if (err) {
 			        	return callback(err, null);
 			        }
-			        $('#statusProgress').text("Downloading Status Page " + page);
+			        $('#statusProgress').attr("data-badge", page);
 			        callback(null, res);
 			    })
 			}, function(err, results) {
@@ -95,14 +95,14 @@ function getUserStatusDataAsync(userId, fileDir, callback) {
 					statusSummary += results[idx];
 				}
 				fileDir.file("status.txt", statusSummary);
-				$('#statusProgress').text("Finished Downloading Status Data");
+				$('#statusProgress').text("状态检测完成").addClass("text-success");
 
 				callback();
 			});
 		},
 		error: function (jqXHR, status, err) {
         	console.log("get first status page error");
-        	$('#statusProgress').text("Scanning Status Data Failed");
+        	$('#statusProgress').text("状态检测失败").addClass("text-error");
         	callback(err, null);
         }
 	});
@@ -153,7 +153,7 @@ function getBlogPage(blogListUrl, userId, page, fileDir, callback) {
 			    if (err) {
 					console.log("get blog content error " + err);
 				}
-				$('#blogProgress').text("Finished Downloading Blog Page " + page);
+				$('#blogProgress').attr("data-badge", page);
 				callback();
 			});
 		},
@@ -165,7 +165,7 @@ function getBlogPage(blogListUrl, userId, page, fileDir, callback) {
 }
 
 function getUserBlogDataAsync(userId, fileDir, callback) {
-	$('#blogProgress').text("Scanning Blog Data");
+	$('#blogProgress').text("日志检测中");
 
 	var blogListUrl = 'http://blog.renren.com/blog/' + userId + '/blogs';
 
@@ -193,13 +193,13 @@ function getUserBlogDataAsync(userId, fileDir, callback) {
 			    if (err) {
 					console.log("error " + err);
 				}
-				$('#blogProgress').text("Finished Downloading Blog Data");
+				$('#blogProgress').text("日志检测完成").addClass("text-success");
 				callback();
 			});
 		},
 		error: function (jqXHR, status, err) {
         	console.log("get first blog page error");
-        	$('#blogProgress').text("Scanning Blog Data Failed");
+        	$('#blogProgress').text("日志检测失败").addClass("text-error");
         	callback(err, null);
         }
 	});
@@ -307,7 +307,7 @@ function getTaggedPhotoDataAsync(userId, callback) {
 }
 
 function getUserPhotoDataAsync(userId, fileDir, callback) {
-	$('#photoProgress').text("Scanning Photo Data");
+	$('#photoProgress').text("照片检测中");
 
 	async.parallel([
 	    function(callback) {
@@ -325,18 +325,17 @@ function getUserPhotoDataAsync(userId, fileDir, callback) {
 
     	var numAlbums = Object.keys(albumData).length;
 		var downloadedAlbums = 0;
-		$('#photoProgress').text("Downloding Photo Data " + downloadedAlbums + "/" + numAlbums);
 		async.mapSeries(Object.keys(albumData), function(albumName, callback) {
 			var photoUrls = albumData[albumName];
 
 			getAlbumDataAsync(albumName, photoUrls, fileDir, callback);
 			downloadedAlbums += 1;
-			$('#photoProgress').text("Downloding Photo Data " + downloadedAlbums + "/" + numAlbums);
+			$('#photoProgress').attr("data-badge", downloadedAlbums + "/" + numAlbums);
 		}, function(err, results) {
 		    if (err) {
 				console.log("error " + err);
 			}
-			$('#photoProgress').text("Finished Downloading Photo Data");
+			$('#photoProgress').text("照片检测完成").addClass("text-success");
 			callback();
 		});
 	});
@@ -390,7 +389,7 @@ $(function() {
 
 			var userId = currentUrl.match(/\d/g).join("");
 			var userName = tabs[0].title.split("-")[1].trim();
-			$('#displayText').text("UserID: " + userId + "\nUserName: " + userName);
+			$('#displayText').text("用户: " + userName);
 
 			$('#downloadButton').click(function() {
 	    		downloadUserData(userId, userName);
@@ -403,7 +402,8 @@ $(function() {
 			$('#blogProgress').hide();
 			$('#photoProgress').hide();
 
-			$('#displayText').text("You are not on a renren profile page");
+			$('#displayText').addClass("text-warning");
+			$('#displayText').text("现在并不在人人网");
 
 			$('#redirectButton').click(function() {
 				console.log('redirectButoon clicked');
