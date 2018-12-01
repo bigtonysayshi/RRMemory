@@ -51,7 +51,7 @@ function getStatusSummary(userId, page, callback) {
 					continue;
 				}
 				var content = statusItem["content"];
-				var cleanedContent = content.replace(/<[^>]*>/g, '');
+				var cleanedContent = content.replace(/<[^>]*>/g, '').trim();
 				summary += cleanedContent + "\t" + statusItem["dtime"] + "\n";
 			}
 			callback(null, summary);
@@ -94,7 +94,7 @@ function getUserStatusDataAsync(userId, fileDir, callback) {
 				for (var idx in results) {
 					statusSummary += results[idx];
 				}
-				fileDir.file("status.txt", statusSummary);
+				fileDir.file("状态.txt", statusSummary);
 				$('#statusProgress').text("状态检测完成").addClass("text-success");
 
 				callback();
@@ -297,7 +297,7 @@ function getTaggedPhotoDataAsync(userId, callback) {
 		url: taggedAlbumUrl,
 		success: function(data) {
 			var taggedPhotoUrls = parseAlbumResponse(data);
-			callback(null, {"Tagged": taggedPhotoUrls});
+			callback(null, {"被圈照片": taggedPhotoUrls});
 		},
 		error: function(jqXHR, status, err) {
         	console.log("getTaggedPhotoDataAsync error");
@@ -342,16 +342,18 @@ function getUserPhotoDataAsync(userId, fileDir, callback) {
 }
 
 function downloadUserData(userId, userName) {
-	// disable button while downloading
-	$('#downloadButton').prop('disabled', true);
+	// hide download button while downloading
+	$('#downloadButton').hide();
+	$('#loadingIcon').show();
+	$('#statusIcon').removeClass("icon-download").hide();
 
 	var filename = userName + "_" + userId;
 	var zip = new JSZip();
 	var rootDir = zip.folder(filename);
 
-	var statusDir = rootDir.folder("Status");
-	var blogDir = rootDir.folder("Blogs");
-	var photoDir = rootDir.folder("Photos");
+	var statusDir = rootDir.folder("状态");
+	var blogDir = rootDir.folder("日志");
+	var photoDir = rootDir.folder("照片");
 
 	async.parallel([
 	    function(callback) {
@@ -369,8 +371,10 @@ function downloadUserData(userId, userName) {
 		zip.generateAsync({type: "blob"}).then(function(content) {
 			saveAs(content, filename + ".zip");
 		});
-		// reenable download button
-		$('#downloadButton').prop('disabled', false);
+
+		$('#loadingIcon').hide();
+		$('#statusIcon').addClass("icon-check").show();
+
 	});
 	
 }
@@ -389,7 +393,7 @@ $(function() {
 
 			var userId = currentUrl.match(/\d/g).join("");
 			var userName = tabs[0].title.split("-")[1].trim();
-			$('#displayText').text("用户: " + userName);
+			$('#displayText').text(userName);
 
 			$('#downloadButton').click(function() {
 	    		downloadUserData(userId, userName);
@@ -401,8 +405,8 @@ $(function() {
 			$('#statusProgress').hide();
 			$('#blogProgress').hide();
 			$('#photoProgress').hide();
+			$('#statusIcon').hide();
 
-			$('#displayText').addClass("text-warning");
 			$('#displayText').text("现在并不在人人网");
 
 			$('#redirectButton').click(function() {

@@ -3,6 +3,7 @@
   <head>
     <title>Memory</title>
     <link rel="stylesheet" href="spectre.css">
+    <link rel="stylesheet" href="spectre-icons.min.css">
     <script src="async.min.js"></script>
     <script src="jquery-3.3.1.min.js"></script>
     <script src="jszip.min.js"></script>
@@ -11,35 +12,37 @@
     <meta charset="utf-8"> 
   </head>
   <body>
-    <div class="container grid-md" style="width:300px;">
+    <div class="container grid-md bg-gray" style="width:300px;">
       <div class="columns">
-        <div class="column col-12">
+        <div class="col-12">
           <br>
         </div>
 
-        <div class="column col-12 text-center text-break">
+        <div class="col-8 col-mx-auto text-center text-break text-dark">
           <h5 id="displayText">欢迎</h5>
         </div>
-        <div class="column col-12 text-center text-break">
+        <div class="col-12 text-center text-break">
           <span id="statusProgress" class="badge" data-badge="0">状态未开始检测</span>
         </div>
-        <div class="column col-12 text-center text-break">
+        <div class="col-12 text-center text-break">
           <span id="blogProgress" class="badge" data-badge="0">日志未开始检测</span>
         </div>
-        <div class="column col-12 text-center text-break">
+        <div class="col-12 text-center text-break">
           <span id="photoProgress" class="badge" data-badge="0/0">照片未开始检测</span>
         </div>
         
-        <div class="column col-12">
+        <div class="col-12">
           <br>
         </div>
-        
-        <div class="column col-12 text-center">
-          <input id="downloadButton" class="btn btn-primary" type="submit" value="开始下载"/>
-          <input id="redirectButton" class="btn btn-primary" type="submit" value="点我！去人人网"/>
+
+        <div class="col-12 text-center">
+          <input id="downloadButton" class="col-6 col-mx-auto btn btn-primary" type="submit" value="开始下载"/>
+          <input id="redirectButton" class="col-6 col-mx-auto btn btn-primary" type="submit" value="点我！去人人网"/>
+          <i id="statusIcon" class="col-2 icon icon-download"></i>
+          <div id="loadingIcon" class="col-4 col-mx-auto loading text-center" style="display: none;"></div>
         </div>
         
-        <div class="column col-12">
+        <div class="col-12">
           <br>
         </div>
 
