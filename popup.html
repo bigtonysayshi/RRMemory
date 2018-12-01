@@ -2,6 +2,7 @@
 <html>
   <head>
     <title>Memory</title>
+    <link rel="stylesheet" href="spectre.css">
     <script src="async.min.js"></script>
     <script src="jquery-3.3.1.min.js"></script>
     <script src="jszip.min.js"></script>
@@ -9,14 +10,36 @@
     <script src="popup.js"></script>
   </head>
   <body>
-    <h2 id="displayText">foo</h2>
-    <h2 id="statusProgress">Status Not Scanned</h2>
-    <h2 id="blogProgress">Blogs Not Scanned</h2>
-    <h2 id="photoProgress">Photos Not Scanned</h2>
+    <div class="container grid-md" style="width:300px;">
+      <div class="columns">
+        <div class="column col-12">
+          <br>
+        </div>
 
-    <input id="downloadButton" type="submit" value="Download User Data"/>
-    <input id="redirectButton" type="submit" value="Go to renren.com"/>
+        <div class="column col-12 text-center text-break">
+          <h5 id="displayText">foo</h5>
+        </div>
+        <div class="column col-12 text-center text-break">
+          <h5 id="statusProgress">Status Not Scanned</h5>
+        </div>
+        <div class="column col-12 text-center text-break">
+          <h5 id="blogProgress">Blogs Not Scanned</h5>
+        </div>
+        <div class="column col-12 text-center text-break">
+          <h5 id="photoProgress">Photos Not Scanned</h5>
+        </div>
+        
+        <div class="column col-12 text-center">
+          <input id="downloadButton" class="btn btn-primary" type="submit" value="Download User Data"/>
+          <input id="redirectButton" class="btn btn-primary" type="submit" value="Go to renren.com"/>
+        </div>
+        
+        <div class="column col-12">
+          <br>
+        </div>
+        
+      </div>
+    </div>
 
-    <div id="spaceHolder" style="overflow: auto; width:300px; height:200px;white-space: pre;"></div>
   </body>
 </html>
