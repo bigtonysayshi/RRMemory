@@ -374,6 +374,7 @@ function downloadUserData(userId, userName) {
 
 		$('#loadingIcon').hide();
 		$('#statusIcon').addClass("icon-check").show();
+		$('#completeText').show();
 
 	});
 	
