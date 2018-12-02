@@ -83,7 +83,7 @@ function getUserStatusDataAsync(userId, fileDir, callback) {
 			        if (err) {
 			        	return callback(err, null);
 			        }
-			        $('#statusProgress').attr("data-badge", page);
+			        $('#statusProgress').attr("data-badge", page + 1);
 			        callback(null, res);
 			    })
 			}, function(err, results) {
@@ -153,7 +153,7 @@ function getBlogPage(blogListUrl, userId, page, fileDir, callback) {
 			    if (err) {
 					console.log("get blog content error " + err);
 				}
-				$('#blogProgress').attr("data-badge", page);
+				$('#blogProgress').attr("data-badge", page + 1);
 				callback();
 			});
 		},
