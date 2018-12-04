@@ -222,6 +222,8 @@ function getPhotoDataAsync(photoUrl, callback) {
 	$.ajax({
 		url: photoUrl,
 		dataType:"binary",
+		tryCount : 0,
+		retryLimit : 3,
 		xhr:function() {
             var xhr = new XMLHttpRequest();
             xhr.responseType= 'blob'
@@ -231,6 +233,13 @@ function getPhotoDataAsync(photoUrl, callback) {
             callback(null, data);
         },
         error: function (jqXHR, status, err) {
+        	this.tryCount++;
+            if (this.tryCount <= this.retryLimit) {
+                //try again
+                $.ajax(this);
+                return;
+            }
+
         	console.log("async download photo error url " + photoUrl);
         	callback(err, null);
         }
@@ -242,14 +251,14 @@ function getAlbumDataAsync(albumName, photoUrls, fileDir, callback) {
 
 	var downloadCount = 0;
 
-	async.map(photoUrls, function(photoUrl, callback) {
+	async.map(photoUrls, function(photoUrl, callback2) {
 	    var photoName = photoUrl.substring(photoUrl.lastIndexOf("/") + 1, photoUrl.length);
 	    getPhotoDataAsync(photoUrl, function(err, res) {
     		if (err) {
     			console.log("getPhotoData error " + err);
-    			callback(err, null);
+    			callback2(err, null);
     		}
-    		callback(null, [photoName, res]);
+    		callback2(null, [photoName, res]);
     	});
 	}, function(err, results) {
 	    if (err) {
@@ -261,6 +270,10 @@ function getAlbumDataAsync(albumName, photoUrls, fileDir, callback) {
 			}
 			var photoName = res[0];
 			var photoData = res[1];
+			if (!photoData) {
+				console.log("photodata empty");
+				return;
+			}
 			albumDir.file(photoName, photoData, {binary:true});
 		});
 		callback();
@@ -268,7 +281,7 @@ function getAlbumDataAsync(albumName, photoUrls, fileDir, callback) {
 }
 
 function getAlbumListInfoAsync(userId, callback) {
-	var albumListUrl = 'http://photo.renren.com/photo/' + userId + '/albumlist/v7';
+	var albumListUrl = 'http://photo.renren.com/photo/' + userId + '/albumlist/v7?limit=100';
 	$.ajax({
 		url: albumListUrl,
 		success: function(data){
@@ -277,10 +290,10 @@ function getAlbumListInfoAsync(userId, callback) {
 
 			async.map(albumListJson, function(album, callback) {
 			    if ((album['sourceControl'] == 0 || album['sourceControl'] == 99 || album['sourceControl'] == -1) && album['photoCount'] > 0) {
-					var firstPageUrl = 'http://photo.renren.com/photo/' + album['ownerId'] + '/' + 'album-' + album['albumId'] + '/bypage/ajax/v7?page=0&pageSize=100';
+					var firstPageUrl = 'http://photo.renren.com/photo/' + album['ownerId'] + '/' + 'album-' + album['albumId'] + '/bypage/ajax/v7?page=1&pageSize=100';
 					var albumUrls = [firstPageUrl];
 					if (album['photoCount'] > 100) {
-						var secondPageUrl = 'http://photo.renren.com/photo/' + album['ownerId'] + '/' + 'album-' + album['albumId'] + '/bypage/ajax/v7?page=1&pageSize=100';
+						var secondPageUrl = 'http://photo.renren.com/photo/' + album['ownerId'] + '/' + 'album-' + album['albumId'] + '/bypage/ajax/v7?page=2&pageSize=100';
 						albumUrls.push(secondPageUrl);
 					}
 
@@ -290,12 +303,21 @@ function getAlbumListInfoAsync(userId, callback) {
 							var albumResponseData = $.ajax({
 								url: albumUrl,
 								dataType: "json",
+								tryCount : 0,
+								retryLimit : 5,
 								success: function(albumResponseData) {
 									var imageUrlList = parseAlbumResponsePaged(albumResponseData);
 									callback2(null, imageUrlList);
 								},
 								error: function(jqXHR, status, err) {
-									console.log('get album url list failed');
+									this.tryCount++;
+						            if (this.tryCount <= this.retryLimit) {
+						                //try again
+						                $.ajax(this);
+						                return;
+						            }
+						            // return;
+									console.log('get album response data failed');
 									callback2(err, []);
 						        }
 							});
