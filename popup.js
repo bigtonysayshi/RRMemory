@@ -32,6 +32,19 @@ function parseAlbumResponse(responseData) {
 	return imageUrlList;
 }
 
+function parseAlbumResponsePaged(responseData) {
+	var urlList = []
+
+	var photoList = responseData.photoList;
+	if (!photoList) {
+		return urlList;
+	}
+	photoList.forEach(function(item) {
+		urlList.push(item.url);
+	})
+	return urlList;
+}
+
 function getStatusSummary(userId, page, callback) {
 	$.ajax({
 		url: STATUS_URL,
@@ -218,7 +231,7 @@ function getPhotoDataAsync(photoUrl, callback) {
             callback(null, data);
         },
         error: function (jqXHR, status, err) {
-        	console.log("async download photo error");
+        	console.log("async download photo error url " + photoUrl);
         	callback(err, null);
         }
 	});
@@ -264,15 +277,43 @@ function getAlbumListInfoAsync(userId, callback) {
 
 			async.map(albumListJson, function(album, callback) {
 			    if ((album['sourceControl'] == 0 || album['sourceControl'] == 99 || album['sourceControl'] == -1) && album['photoCount'] > 0) {
-					var albumUrl = 'http://photo.renren.com/photo/' + album['ownerId'] + '/' + 'album-' + album['albumId'] + '/v7';
-					var albumResponseData = $.ajax({
-						url: albumUrl,
-						success: function(albumResponseData) {
-							var imageUrlList = parseAlbumResponse(albumResponseData);
+					var firstPageUrl = 'http://photo.renren.com/photo/' + album['ownerId'] + '/' + 'album-' + album['albumId'] + '/bypage/ajax/v7?page=0&pageSize=100';
+					var albumUrls = [firstPageUrl];
+					if (album['photoCount'] > 100) {
+						var secondPageUrl = 'http://photo.renren.com/photo/' + album['ownerId'] + '/' + 'album-' + album['albumId'] + '/bypage/ajax/v7?page=1&pageSize=100';
+						albumUrls.push(secondPageUrl);
+					}
+
+					async.map(
+						albumUrls,
+						function(albumUrl, callback2) {
+							var albumResponseData = $.ajax({
+								url: albumUrl,
+								dataType: "json",
+								success: function(albumResponseData) {
+									var imageUrlList = parseAlbumResponsePaged(albumResponseData);
+									callback2(null, imageUrlList);
+								},
+								error: function(jqXHR, status, err) {
+									console.log('get album url list failed');
+									callback2(err, []);
+						        }
+							});
+						},
+						function(err, results) {
+							if (err) {
+								console.log('get album url list failed');
+								callback(err, {});
+							}
+							var imageUrlList = []
+							for (idx in results) {
+								imageUrlList = imageUrlList.concat(results[idx]);
+							}
+
 							albumPhotoUrlDict[album['albumName']] = imageUrlList;
 							callback();
-						},
-					});
+						}
+					);
 				} else {
 					callback();
 				}
