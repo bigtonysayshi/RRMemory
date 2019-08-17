@@ -116,7 +116,7 @@ function getUserStatusDataAsync(userId, fileDir, callback) {
 		error: function (jqXHR, status, err) {
         	console.log("get first status page error");
         	$('#statusProgress').text("状态检测失败").addClass("text-error");
-        	callback(err, null);
+        	callback();
         }
 	});
 }
@@ -213,7 +213,7 @@ function getUserBlogDataAsync(userId, fileDir, callback) {
 		error: function (jqXHR, status, err) {
         	console.log("get first blog page error");
         	$('#blogProgress').text("日志检测失败").addClass("text-error");
-        	callback(err, null);
+        	callback()
         }
 	});
 }

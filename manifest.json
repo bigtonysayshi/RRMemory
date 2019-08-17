@@ -1,7 +1,7 @@
 {
 	"manifest_version": 2,
 	"name": "人人一键备份",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"description": "一键备份自己和好友的人人网状态、日志、照片数据",
     "browser_action": {
     	"default_popup": "popup.html",
